@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEURAL HARMONIX // Futuristic KNN Music Engine</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-cyan: #00f3ff;
+            --neon-magenta: #ff0055;
+            --neon-purple: #9d00ff;
+            --bg-dark: #03030c;
+            --card-glass: rgba(15, 15, 35, 0.75);
+            --border-glow: rgba(0, 243, 255, 0.3);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Rajdhani', sans-serif; }
+        
+        body {
+            background-color: var(--bg-dark);
+            color: #fff;
+            overflow-x: hidden;
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 15% 20%, rgba(157, 0, 255, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(0, 243, 255, 0.15) 0%, transparent 40%);
+        }
+
+        canvas#bg-visualizer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        .container {
+            position: relative;
+            z-index: 10;
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        header h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+        }
+
+        header p {
+            font-size: 1.2rem;
+            color: #8a99ad;
+            letter-spacing: 2px;
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 30px;
+        }
+
+        /* Control Panel / Sliders */
+        .control-panel {
+            background: var(--card-glass);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 24px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), inset 0 0 15px rgba(0, 243, 255, 0.1);
+        }
+
+        .panel-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            color: var(--neon-cyan);
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-glow);
+            padding-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .slider-group {
+            margin-bottom: 20px;
+        }
+
+        .slider-group label {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 700;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            color: #d1d5db;
+        }
+
+        .slider-group label span {
+            color: var(--neon-cyan);
+        }
+
+        input[type=range] {
+            width: 100%;
+            height: 6px;
+            appearance: none;
+            background: #1a1a3a;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        .btn-cyber {
+            width: 100%;
+            padding: 14px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #000;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.4);
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .btn-cyber:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px rgba(255, 0, 85, 0.7);
+        }
+
+        /* Songs Display Grid */
+        .results-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .song-card {
+            background: var(--card-glass);
+            border: 1px solid rgba(255, 0, 85, 0.2);
+            border-radius: 12px;
+            padding: 16px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .song-card:hover {
+            border-color: var(--neon-cyan);
+            transform: translateY(-5px);
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.3);
+        }
+
+        .match-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(0, 243, 255, 0.15);
+            border: 1px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .song-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            margin-bottom: 4px;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-right: 70px;
+        }
+
+        .artist-name {
+            color: var(--neon-magenta);
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+        }
+
+        .spotify-iframe-container {
+            margin-top: 12px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        iframe {
+            border: none;
+            width: 100%;
+            height: 80px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-visualizer"></canvas>
+
+    <div class="container">
+        <header>
+            <h1>Neural Harmonix</h1>
+            <p>// KNN ACOUSTIC MOOD SYNTHESIZER</p>
+        </header>
+
+        <div class="grid-layout">
+            <!-- Mood Control Sliders -->
+            <div class="control-panel">
+                <div class="panel-title">
+                    <span>ACOUSTIC MATRIX</span>
+                    <span>v2.5</span>
+                </div>
+
+                <div class="slider-group">
+                    <label>ENERGY (SYNTH INTENSITY) <span id="val-energy">85%</span></label>
+                    <input type="range" id="energy" min="0" max="100" value="85">
+                </div>
+
+                <div class="slider-group">
+                    <label>VALENCE (EMOTIONAL SPECTRUM) <span id="val-valence">65%</span></label>
+                    <input type="range" id="valence" min="0" max="100" value="65">
+                </div>
+
+                <div class="slider-group">
+                    <label>DANCEABILITY (RHYTHM GRID) <span id="val-dance">80%</span></label>
+                    <input type="range" id="danceability" min="0" max="100" value="80">
+                </div>
+
+                <div class="slider-group">
+                    <label>ACOUSTICNESS (ORGANIC / SYNTH) <span id="val-acoustic">20%</span></label>
+                    <input type="range" id="acousticness" min="0" max="100" value="20">
+                </div>
+
+                <div class="slider-group">
+                    <label>TEMPO (BPM VELOCITY) <span id="val-tempo">135</span></label>
+                    <input type="range" id="tempo" min="60" max="180" value="135">
+                </div>
+
+                <button class="btn-cyber" onclick="executeKNN()">EXECUTE NEURAL SEARCH</button>
+            </div>
+
+            <!-- Songs Grid Output -->
+            <div class="results-container" id="results">
+                <!-- Cards injected dynamically via JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample Embedded Dataset for Instant Client-Side KNN Execution
+        const dataset = [
+            { track_id: "3EJS5LyekDim1Tf5rBFmZl", track_name: "Trippy Mane", artist_name: "Diplo", genres: "moombahton", energy: 0.88, valence: 0.70, danceability: 0.85, acousticness: 0.15, tempo: 150 },
+            { track_id: "1oQW6G2ZiwMuHqlPpP27DB", track_name: "OMG!", artist_name: "Yelawolf", genres: "southern hip hop", energy: 0.75, valence: 0.60, danceability: 0.82, acousticness: 0.18, tempo: 120 },
+            { track_id: "7mdkjzoIYlf1rx9EtBpGmU", track_name: "Hard 2 Find", artist_name: "Riff Raff", genres: "hip hop", energy: 0.58, valence: 0.50, danceability: 0.55, acousticness: 0.30, tempo: 120 },
+            { track_id: "3E3zEAL8gUYWaLYB9L7gbp", track_name: "Still Get Like That", artist_name: "Diplo", genres: "moombahton", energy: 0.92, valence: 0.80, danceability: 0.88, acousticness: 0.10, tempo: 135 },
+            { track_id: "4SUmmwnv0xTjRcLdjczGg2", track_name: "ride me like a harley", artist_name: "Rumelis", genres: "dark r&b", energy: 0.40, valence: 0.30, danceability: 0.60, acousticness: 0.55, tempo: 88 },
+            { track_id: "5QRFnGnBeMGePBKF2xTz5z", track_name: "BLEED", artist_name: "Minzie", genres: "dark r&b", energy: 0.35, valence: 0.25, danceability: 0.50, acousticness: 0.60, tempo: 92 }
+        ];
+
+        // Dynamic Slider Inputs Setup
+        ['energy', 'valence', 'danceability', 'acousticness', 'tempo'].forEach(id => {
+            document.getElementById(id).addEventListener('input', (e) => {
+                const label = document.getElementById('val-' + (id === 'danceability' ? 'dance' : id === 'acousticness' ? 'acoustic' : id));
+                label.innerText = id === 'tempo' ? e.target.value : e.target.value + '%';
+            });
+        });
+
+        // Euclidean Distance Metric for KNN
+        function calculateDistance(v1, v2) {
+            return Math.sqrt(
+                Math.pow(v1.energy - v2.energy, 2) +
+                Math.pow(v1.valence - v2.valence, 2) +
+                Math.pow(v1.danceability - v2.danceability, 2) +
+                Math.pow(v1.acousticness - v2.acousticness, 2) +
+                Math.pow((v1.tempo - v2.tempo) / 100, 2)
+            );
+        }
+
+        function executeKNN() {
+            const userVector = {
+                energy: parseFloat(document.getElementById('energy').value) / 100,
+                valence: parseFloat(document.getElementById('valence').value) / 100,
+                danceability: parseFloat(document.getElementById('danceability').value) / 100,
+                acousticness: parseFloat(document.getElementById('acousticness').value) / 100,
+                tempo: parseFloat(document.getElementById('tempo').value)
+            };
+
+            const scored = dataset.map(song => {
+                const dist = calculateDistance(userVector, song);
+                const similarity = Math.max(0, Math.min(100, (1 - dist) * 100));
+                return { ...song, match: similarity.toFixed(1) };
+            });
+
+            scored.sort((a, b) => b.match - a.match);
+
+            const container = document.getElementById('results');
+            container.innerHTML = scored.map(song => `
+                <div class="song-card">
+                    <div class="match-badge">${song.match}% MATCH</div>
+                    <div class="song-title">${song.track_name}</div>
+                    <div class="artist-name">${song.artist_name}</div>
+                    <div style="font-size:0.8rem; color:#8a99ad;">GENRE: ${song.genres}</div>
+                    <div class="spotify-iframe-container">
+                        <iframe src="https://open.spotify.com/embed/track/${song.track_id}?utm_source=generator&theme=0" loading="lazy"></iframe>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Animated Futuristic Background Canvas
+        const canvas = document.getElementById('bg-visualizer');
+        const ctx = canvas.getContext('2d');
+        let width, height, particles = [];
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        for (let i = 0; i < 60; i++) {
+            particles.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                radius: Math.random() * 2 + 1,
+                vx: (Math.random() - 0.5) * 1.5,
+                vy: (Math.random() - 0.5) * 1.5,
+                color: Math.random() > 0.5 ? '#00f3ff' : '#ff0055'
+            });
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            particles.forEach(p => {
+                p.x += p.vx; p.y += p.vy;
+                if (p.x < 0 || p.x > width) p.vx *= -1;
+                if (p.y < 0 || p.y > height) p.vy *= -1;
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = p.color;
+                ctx.fill();
+            });
+            requestAnimationFrame(animate);
+        }
+        animate();
+        executeKNN();
+    </script>
+</body>
+</html>
